@@ -6,6 +6,7 @@ import (
 
 	"telegram-quotes-bot/internal/entities"
 	"telegram-quotes-bot/internal/interfaces"
+	"telegram-quotes-bot/internal/validators"
 )
 
 // FetchQuoteService предоставляет методы для получения случайных цитат через API.
@@ -28,6 +29,14 @@ func (s *FetchQuoteService) FetchQuote(ctx context.Context) (*entities.Quote, er
 		// Если произошла ошибка при получении цитаты, возвращаем nil и сообщение об ошибке
 		return nil, errors.New("не удалось получить цитату")
 	}
+
+	// Валидируем полученную цитату
+	if quote != nil {
+		if err := validators.ValidateQuote(quote.Text, quote.Author); err != nil {
+			return nil, errors.New("получена невалидная цитата: " + err.Error())
+		}
+	}
+
 	// Возвращаем полученную цитату
 	return quote, nil
 }

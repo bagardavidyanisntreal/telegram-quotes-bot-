@@ -3,19 +3,49 @@ tasks:
   default:
     desc: Задача по умолчанию
     cmds:
-      - echo "Привет, это Taskfile!"
+      - echo "Доступные команды: build, test, lint, run, clean"
 
   build:
     desc: Собираем приложение
     cmds:
       - go build -o ./app cmd/main.go
+      - echo "Приложение собрано: ./app"
 
   test:
     desc: Запускаем тесты
     cmds:
-      - go test ./...
+      - go test -v ./...
+      - echo "Тесты завершены"
+
+  test-coverage:
+    desc: Запускаем тесты с покрытием
+    cmds:
+      - go test -v -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - echo "Отчет о покрытии создан: coverage.html"
 
   lint:
     desc: Проверяем код на ошибки стиля
     cmds:
-      - golint ./...
+      - go vet ./...
+      - go fmt ./...
+      - echo "Проверка стиля завершена"
+
+  run:
+    desc: Запускаем приложение
+    cmds:
+      - go run cmd/main.go
+
+  clean:
+    desc: Очищаем артефакты сборки
+    cmds:
+      - rm -f ./app
+      - rm -f coverage.out coverage.html
+      - echo "Артефакты очищены"
+
+  deps:
+    desc: Обновляем зависимости
+    cmds:
+      - go mod tidy
+      - go mod download
+      - echo "Зависимости обновлены"

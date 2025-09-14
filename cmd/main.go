@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
-	"github.com/joho/godotenv"
-	"github.com/robfig/cron/v3"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 	"telegram-quotes-bot/internal/adapters"
 	"telegram-quotes-bot/internal/config"
 	"telegram-quotes-bot/internal/usecases"
+
+	"github.com/joho/godotenv"
+	"github.com/robfig/cron/v3"
 )
 
 // setupLogger логгер
@@ -20,11 +23,17 @@ func setupLogger() *slog.Logger {
 }
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		slog.Warn("Файл .env не найден или не загружен")
-	}
 	// Настройка логгера
 	logger := setupLogger()
+
+	// Загрузка .env файла
+	if err := godotenv.Load(); err != nil {
+		logger.Warn("Файл .env не найден или не загружен")
+	}
+
+	// Создаем контекст с обработкой сигналов для graceful shutdown
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
 
 	// Загрузка конфигурации
 	cfg, err := config.LoadConfig(logger)
@@ -34,8 +43,7 @@ func main() {
 	}
 
 	// Инициализация адаптеров
-	quoteAPI := adapters.NewZenQuotesAPI()
-	translator := adapters.NewMyMemoryTranslator()
+	quoteAPI := adapters.NewForismaticAPI()
 	telegramAdapter, err := adapters.NewTelegramAdapter(cfg.BotToken, cfg.ChatID)
 	if err != nil {
 		logger.Error("Не удалось инициализировать TelegramAdapter", "error", err)
@@ -44,7 +52,6 @@ func main() {
 
 	// Инициализация сервисов
 	fetchQuoteService := usecases.NewFetchQuoteService(quoteAPI)
-	translateService := usecases.NewTranslateService(translator)
 	sendQuoteService := usecases.NewSendQuoteService(telegramAdapter)
 
 	// Планировщик Cron
@@ -53,26 +60,17 @@ func main() {
 
 	// Задача отправки цитат
 	_, err = c.AddFunc("0 4,8,14,18 * * *", func() {
-		ctx := context.Background()
+		taskCtx := context.Background()
 
-		// Получение цитаты
-		quote, err := fetchQuoteService.FetchQuote(ctx)
+		// Получение цитаты на русском языке
+		quote, err := fetchQuoteService.FetchQuote(taskCtx)
 		if err != nil {
 			logger.Error("Ошибка получения цитаты", "error", err)
 			return
 		}
 
-		// Перевод цитаты
-		translatedText, translatedAuthor, err := translateService.Translate(ctx, quote.Text, quote.Author)
-		if err != nil {
-			logger.Error("Ошибка перевода цитаты или автора", "error", err)
-		} else {
-			quote.Text = translatedText
-			quote.Author = translatedAuthor
-		}
-
 		// Отправка цитаты
-		if err := sendQuoteService.SendQuote(ctx, quote); err != nil {
+		if err := sendQuoteService.SendQuote(taskCtx, quote); err != nil {
 			logger.Error("Ошибка отправки цитаты", "error", err)
 		} else {
 			logger.Info("Цитата успешно отправлена", "quote", quote.Text, "author", quote.Author)
@@ -87,6 +85,33 @@ func main() {
 	c.Start()
 	logger.Info("Планировщик запущен. Ожидание задач.")
 
-	// Бесконечный цикл для работы программы
-	select {}
+	// Отправка тестовой цитаты при запуске (если включено в конфигурации)
+	if cfg.SendTestQuote {
+		logger.Info("Отправка тестовой цитаты...")
+		testCtx := context.Background()
+
+		// Получение тестовой цитаты
+		testQuote, err := fetchQuoteService.FetchQuote(testCtx)
+		if err != nil {
+			logger.Error("Ошибка получения тестовой цитаты", "error", err)
+		} else {
+			// Отправка тестовой цитаты
+			if err := sendQuoteService.SendQuote(testCtx, testQuote); err != nil {
+				logger.Error("Ошибка отправки тестовой цитаты", "error", err)
+			} else {
+				logger.Info("Тестовая цитата успешно отправлена", "quote", testQuote.Text, "author", testQuote.Author)
+			}
+		}
+	} else {
+		logger.Info("Отправка тестовой цитаты отключена в конфигурации")
+	}
+
+	// Ожидание сигнала завершения
+	<-ctx.Done()
+	logger.Info("Получен сигнал завершения. Останавливаем планировщик...")
+
+	// Остановка планировщика
+	stopCtx := c.Stop()
+	<-stopCtx.Done()
+	logger.Info("Планировщик остановлен. Программа завершена.")
 }
