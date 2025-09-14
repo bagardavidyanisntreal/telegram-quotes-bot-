@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"strings"
 	"time"
 
 	"telegram-quotes-bot/internal/entities"
@@ -57,38 +56,12 @@ func (s *SendQuoteService) FormatQuote(quote *entities.Quote) string {
 
 	// Выбираем случайный стиль форматирования
 	styles := []func(string, string) string{
-		s.formatStyle1,
 		s.formatStyle2,
 		s.formatStyle3,
-		s.formatStyle4,
 	}
 
 	style := styles[rand.Intn(len(styles))]
 	return style(text, quote.Author)
-}
-
-// formatStyle1 - Стиль с рамкой
-func (s *SendQuoteService) formatStyle1(text, author string) string {
-	quoteEmojis := []string{"💭", "✨", "🌟", "💫", "🎯", "🔥", "💡", "🌈", "🦋", "🌸"}
-	authorEmojis := []string{"✍️", "👤", "🎭", "📝", "🖋️", "✏️", "📖", "📚", "🎨", "🎪"}
-
-	quoteEmoji := quoteEmojis[rand.Intn(len(quoteEmojis))]
-	authorEmoji := authorEmojis[rand.Intn(len(authorEmojis))]
-
-	return fmt.Sprintf(
-		"%s *Цитата дня*\n\n"+
-			"┌─────────────────────────┐\n"+
-			"│  %s  │\n"+
-			"│                         │\n"+
-			"│  %s  │\n"+
-			"└─────────────────────────┘\n\n"+
-			"%s *%s*",
-		quoteEmoji,
-		text,
-		strings.Repeat("─", 25),
-		authorEmoji,
-		author,
-	)
 }
 
 // formatStyle2 - Стиль с кавычками
@@ -117,23 +90,6 @@ func (s *SendQuoteService) formatStyle3(text, author string) string {
 			"  %s\n"+
 			"━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"+
 			"👤 *%s*",
-		emoji,
-		text,
-		author,
-	)
-}
-
-// formatStyle4 - Стиль с эмодзи-рамкой
-func (s *SendQuoteService) formatStyle4(text, author string) string {
-	emojis := []string{"💭", "✨", "🌟", "💫", "🎯", "🔥", "💡", "🌈", "🦋", "🌸"}
-	emoji := emojis[rand.Intn(len(emojis))]
-
-	return fmt.Sprintf(
-		"%s *Цитата дня*\n\n"+
-			"🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦\n"+
-			"🟦  %s  🟦\n"+
-			"🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦🟦\n\n"+
-			"✍️ *%s*",
 		emoji,
 		text,
 		author,
