@@ -59,7 +59,7 @@ func main() {
 	defer c.Stop()
 
 	// Задача отправки цитат
-	_, err = c.AddFunc("0 4,8,14,18 * * *", func() {
+	_, err = c.AddFunc(cfg.Crontab, func() {
 		taskCtx := context.Background()
 
 		// Получение цитаты на русском языке
@@ -97,7 +97,7 @@ func main() {
 		} else {
 			// Отправка тестовой цитаты
 			if err := sendQuoteService.SendQuote(testCtx, testQuote); err != nil {
-				logger.Error("Ошибка отправки тестовой цитаты", "error", err)
+				logger.Error("Ошибка отправки тестовой цитаты", "error", err, "quote", testQuote.Text)
 			} else {
 				logger.Info("Тестовая цитата успешно отправлена", "quote", testQuote.Text, "author", testQuote.Author)
 			}
