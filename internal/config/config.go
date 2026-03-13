@@ -2,11 +2,14 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
 
 	"telegram-quotes-bot/internal/validators"
+
+	"github.com/robfig/cron/v3"
 )
 
 // Config представляет конфигурацию приложения.
@@ -14,6 +17,7 @@ type Config struct {
 	BotToken      string // Токен Telegram-бота
 	ChatID        int64  // Идентификатор Telegram-канала
 	SendTestQuote bool   // Отправлять ли тестовую цитату при запуске
+	Crontab       string
 }
 
 // LoadConfig загружает конфигурацию из переменных окружения.
@@ -59,11 +63,20 @@ func LoadConfig(logger *slog.Logger) (*Config, error) {
 		}
 	}
 
+	crontab := os.Getenv("CRON_TAB")
+
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
+	if _, err = parser.Parse(crontab); err != nil {
+		return nil, fmt.Errorf("invalid crontab: %w", err)
+	}
+
 	// Возвращаем конфигурацию
 	return &Config{
 		BotToken:      botToken,
 		ChatID:        chatID,
 		SendTestQuote: sendTestQuote,
+		Crontab:       crontab,
 	}, nil
 }
 
